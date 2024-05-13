@@ -22,6 +22,7 @@ export const handler = async (event: HandlerEvent) => {
     // Input section is inside an iframe
     const frames = page.frames();
     const frame = frames[1]; // frames[0] is the main page, frames[1] is the first iframe
+    console.log('Frame URL:', frame.url());
     if (!frame) {
       throw new Error('No iframe found');
     }
@@ -34,10 +35,42 @@ export const handler = async (event: HandlerEvent) => {
     // Check the form for the submit button
     await frame.waitForSelector('button[type="submit"]', { visible: true });
     console.log('Found submit button');
+
     await frame.click('button[type="submit"]');
     console.log('Clicked submit button');
 
+    // Wait for the next form to load
+    await frame.waitForFunction(
+      (text) => document.body.innerText.includes(text),
+      {},
+      'By clicking',
+    );
+    console.log('Next form loaded');
+    const buttons = await frame.$$eval('button', (buttons) =>
+      buttons.map((button) => ({
+        html: button.outerHTML,
+        text: button?.textContent?.trim(),
+        visible: window.getComputedStyle(button).display !== 'none',
+      })),
+    );
+
+    console.log('Buttons found:', buttons);
+
+    const enterButtons = await frame.$$('button.xButton.xCTA.xSubmit');
+    console.log('Enter buttons:', enterButtons);
+    const enterButton = enterButtons[0];
+    if (!enterButton) {
+      throw new Error('No enter button found');
+    }
+    await enterButton.click();
+    console.log('Clicked enter button');
+
     // There is another button to confirm the submission
+    // make sure this button has the text "Enter" in it
+    const buttonText = await frame.evaluate(() => {
+      return document.querySelector('button[type="submit"]')?.textContent;
+    });
+    console.log('Button text:', buttonText);
     await frame.click('button[type="submit"]');
     console.log('Confirmed submission');
     // await browser.close();
